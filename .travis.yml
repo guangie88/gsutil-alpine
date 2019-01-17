@@ -1,0 +1,38 @@
+language: bash
+
+env:
+  global:
+  - IMAGE_NAME=${DOCKER_USERNAME}/gsutil-alpine
+
+matrix:
+  include:
+  - services: docker
+    env:
+    - LATEST=true
+    - TAG_NAME=master
+  
+before_script:
+- docker login -u="${DOCKER_USERNAME}" -p="${DOCKER_PASSWORD}"
+
+script:
+- FULL_IMAGE_NAME="${IMAGE_NAME}:${TAG_NAME}"
+- docker build . -t ${FULL_IMAGE_NAME}
+
+after_success:
+- |
+  docker run --rm ${FULL_IMAGE_NAME} \
+    gcloud version
+- |  
+  if [ "${TRAVIS_PULL_REQUEST}" = "false" ]; then
+    docker push ${FULL_IMAGE_NAME}
+
+    if [ "${LATEST}" = "true" ]; then
+      LATEST_IMAGE_NAME="${IMAGE_NAME}:latest"
+      docker tag ${FULL_IMAGE_NAME} ${LATEST_IMAGE_NAME}
+      docker push ${LATEST_IMAGE_NAME}
+    fi
+  fi
+
+branches:
+  only:
+  - master
